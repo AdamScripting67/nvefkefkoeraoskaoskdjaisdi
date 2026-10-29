@@ -665,7 +665,6 @@ function Window:AddCategory(o)
 
 	-- tab list holder for this category
 	local h = New("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = self.TabListFrame })
-	self:_makeDraggable(h)
 	local label = New("TextLabel", { Text = cat.Name, TextSize = 10, TextColor3 = Theme.SubText, Position = UDim2.fromOffset(9, 14), Size = UDim2.new(1, -18, 0, 12), Parent = h })
 	local list = New("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(6, 28), Size = UDim2.new(1, -12, 1, -90), Parent = h })
 	New("UIListLayout", { Padding = UDim.new(0, 4), Parent = list })
@@ -691,7 +690,19 @@ function Window:SelectCategory(cat)
 		self.Indicator.Position = UDim2.fromOffset(0, y)
 	end
 	local t = cat.ActiveTab or cat.Tabs[1]
-	if t then self:SelectTab(t, true) end
+	if t then 
+		self:SelectTab(t, true) 
+	else
+		-- FIX: Hide the current tab if the new category has no tabs
+		if self.ActiveTab then
+			local oldTab = self.ActiveTab
+			self.ActiveTab = nil
+			StyleTab(oldTab, false)
+			if oldTab.Page then
+				oldTab.Page.Visible = false
+			end
+		end
+	end
 end
 
 function Category:AddTab(o)
@@ -722,17 +733,14 @@ function Category:AddTab(o)
 	end)
 	btn.MouseButton1Click:Connect(function() win:SelectTab(tab) end)
 
-	-- Page
-	local page = New("CanvasGroup", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, GroupTransparency = 1, Parent = win.Content })
-	win:_makeDraggable(page)
+	-- FIX: Changed from CanvasGroup to Frame to prevent blurriness
+	local page = New("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = win.Content })
 	local cols = New("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 12), Size = UDim2.new(1, -23, 1, -30), Parent = page })
-	win:_makeDraggable(cols)
 	tab.Page = page
 
 	local function makeColumn(pos)
 		local f = New("ScrollingFrame", { Position = pos, Size = UDim2.new(0.5, -5.5, 1, 0), Parent = cols })
 		New("UIListLayout", { Padding = UDim.new(0, 10), Parent = f })
-		win:_makeDraggable(f)
 		return { Frame = f, Sections = {} }
 	end
 	tab.Left = makeColumn(UDim2.fromOffset(0, 0))
@@ -762,21 +770,14 @@ function Window:SelectTab(tab, instant)
 
 	if old then
 		StyleTab(old, false)
-		local op = old.Page
-		if instant or old.Category ~= tab.Category then
-			op.Visible = false
-			op.GroupTransparency = 1
-		else
-			Tween(op, { GroupTransparency = 1 }, 0.12)
-			task.delay(0.12, function() if self.ActiveTab ~= old then op.Visible = false end end)
+		if old.Page then
+			old.Page.Visible = false
 		end
 	end
 	StyleTab(tab, true)
 	local p = tab.Page
 	p.Visible = true
-	p.Position = UDim2.fromOffset(0, 10)
-	p.GroupTransparency = 1
-	Tween(p, { GroupTransparency = 0, Position = UDim2.fromOffset(0, 0) }, 0.3, Enum.EasingStyle.Quint)
+	
 	task.defer(function()
 		for _, col in ipairs({ tab.Left, tab.Right }) do
 			if col.Relayout then col.Relayout() end
@@ -794,7 +795,6 @@ function Tab:AddSection(o)
 	local sec = setmetatable({ Tab = self, Window = win, Name = o.Name or "Section", Fill = o.Fill, _order = 0 }, Section)
 
 	local holder = New("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = #col.Sections + 1, Parent = col.Frame })
-	win:_makeDraggable(holder)
 	New("TextLabel", { Text = sec.Name, TextSize = 10, TextColor3 = Theme.SubText, Position = UDim2.fromOffset(2, 0), Size = UDim2.new(1, -4, 0, 14), Parent = holder })
 	local box = New("Frame", {
 		BackgroundColor3 = Theme.Card, Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 0),
@@ -804,7 +804,6 @@ function Tab:AddSection(o)
 	Stroke(box, Theme.Stroke)
 	New("UIListLayout", { Parent = box })
 	local constraint = New("UISizeConstraint", { MinSize = Vector2.new(0, 0), Parent = box })
-	win:_makeDraggable(box)
 
 	sec.Holder, sec.Box, sec.Constraint = holder, box, constraint
 	table.insert(col.Sections, sec)
@@ -837,7 +836,6 @@ local function MakeRow(sec, height, name)
 	row.Name = name or "Row"
 	New("Frame", { Name = "Divider", BackgroundColor3 = Theme.Divider, Position = UDim2.new(0, 8, 1, -1), Size = UDim2.new(1, -16, 0, 1), Parent = row })
 	table.insert(sec.Window.Searchables, { Row = row, Name = name or "" })
-	sec.Window:_makeDraggable(row)
 	return row
 end
 
