@@ -530,10 +530,66 @@ function Library:CreateWindow(o)
 	end)
 	New("TextLabel", { Text = user.Name or LocalPlayer.DisplayName, Font = FONT_BOLD, TextSize = 10, Position = UDim2.fromOffset(38, 8), Size = UDim2.new(1, -74, 0, 12), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 6, Parent = card })
 	New("TextLabel", { Text = user.Subtitle or "Lifetime", TextSize = 8, TextColor3 = Theme.SubText, Position = UDim2.fromOffset(38, 20), Size = UDim2.new(1, -74, 0, 11), ZIndex = 6, Parent = card })
+	
 	local gear = New("TextButton", { Text = "⚙", TextSize = 13, TextColor3 = Theme.SubText, Position = UDim2.new(1, -30, 0, 0), Size = UDim2.fromOffset(26, 40), ZIndex = 7, Parent = card })
-	gear.MouseEnter:Connect(function() Tween(gear, { TextColor3 = Theme.Text, Rotation = 45 }, 0.2) end)
-	gear.MouseLeave:Connect(function() Tween(gear, { TextColor3 = Theme.SubText, Rotation = 0 }, 0.2) end)
-	gear.MouseButton1Click:Connect(function() if o.OnSettings then task.spawn(o.OnSettings) end end)
+	gear.MouseEnter:Connect(function() if not self.SettingsOpen then Tween(gear, { TextColor3 = Theme.Accent, Rotation = 45 }, 0.2) end end)
+	gear.MouseLeave:Connect(function() if not self.SettingsOpen then Tween(gear, { TextColor3 = Theme.SubText, Rotation = 0 }, 0.2) end end)
+
+	-- Settings Popup (Accent Colored Keybind)
+	local settingsPopup = New("CanvasGroup", {
+		BackgroundColor3 = Theme.Background, Position = UDim2.new(0, 9, 1, -55), AnchorPoint = Vector2.new(0, 1),
+		Size = UDim2.fromOffset(173, 60), Visible = false, GroupTransparency = 1, ZIndex = 8, Parent = main
+	})
+	Corner(settingsPopup, 6)
+	Stroke(settingsPopup, Theme.Accent, 1, 0.4)
+	
+	New("TextLabel", {
+		Text = "Menu Toggle Key", TextSize = 10, TextColor3 = Theme.Text, Font = FONT_BOLD,
+		Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -20, 0, 14), Parent = settingsPopup
+	})
+	
+	local keyBtn = New("TextButton", {
+		BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -20, 0, 22),
+		Text = tostring(Library.ToggleKey.Name):upper(), TextSize = 10, TextColor3 = Theme.Accent,
+		Font = FONT_BOLD, Parent = settingsPopup
+	})
+	Corner(keyBtn, 4)
+	Stroke(keyBtn, Theme.Accent, 1, 0.6)
+	
+	local listening = false
+	keyBtn.MouseButton1Click:Connect(function()
+		if listening then return end
+		listening = true
+		keyBtn.Text = "..."
+		local conn
+		conn = UIS.InputBegan:Connect(function(input, gp)
+			if gp then return end
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				Library.ToggleKey = input.KeyCode
+				keyBtn.Text = tostring(input.KeyCode.Name):upper()
+				listening = false
+				conn:Disconnect()
+				if o.OnSettings then task.spawn(o.OnSettings) end
+			end
+		end)
+	end)
+	
+	self.SettingsOpen = false
+	gear.MouseButton1Click:Connect(function()
+		self.SettingsOpen = not self.SettingsOpen
+		if self.SettingsOpen then
+			settingsPopup.Visible = true
+			Tween(settingsPopup, { GroupTransparency = 0 }, 0.25, Enum.EasingStyle.Quint)
+			Tween(gear, { TextColor3 = Theme.Accent, Rotation = 45 }, 0.25)
+		else
+			Tween(settingsPopup, { GroupTransparency = 1 }, 0.2)
+			Tween(gear, { TextColor3 = Theme.SubText, Rotation = 0 }, 0.2)
+			task.delay(0.2, function() 
+				if not self.SettingsOpen then settingsPopup.Visible = false end 
+			end)
+			if o.OnSettings then task.spawn(o.OnSettings) end
+		end
+	end)
 
 	-- Dragging from any non-interactive area -----------------------------
 	for _, inst in ipairs({ main, rail, topbar, tabList, content, logoHolder, card, railList }) do
@@ -856,24 +912,48 @@ end
 ----------------------------------------------------------------------
 local function BuildColorPopup(win)
 	local pop = New("CanvasGroup", {
-		BackgroundColor3 = Theme.Background, Size = UDim2.fromOffset(156, 150), Visible = false,
+		BackgroundColor3 = Theme.Background, Size = UDim2.fromOffset(156, 152), Visible = false,
 		GroupTransparency = 1, ZIndex = 60, Parent = win.Overlay,
 	})
 	Corner(pop, 6)
 	Stroke(pop, Theme.ElementStroke)
 	local scale = New("UIScale", { Scale = 0.9, Parent = pop })
 
-	local sv = New("TextButton", { BackgroundColor3 = Color3.new(1, 0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(140, 88), ZIndex = 61, ClipsDescendants = true, Parent = pop })
-	Corner(sv, 4)
-	local white = New("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), Size = UDim2.fromScale(1, 1), ZIndex = 62, Parent = sv })
-	New("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }), Parent = white })
-	local black = New("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = sv })
-	New("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) }), Parent = black })
-	local svCursor = New("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(8, 8), AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = 64, Parent = sv })
+	-- SV Area
+	local svFrame = New("Frame", { BackgroundColor3 = Color3.new(1, 0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(140, 88), ZIndex = 61, ClipsDescendants = true, Parent = pop })
+	Corner(svFrame, 4)
+	
+	-- White gradient (left to right)
+	local white = New("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), Size = UDim2.fromScale(1, 1), ZIndex = 62, Parent = svFrame })
+	New("UIGradient", { 
+		Color = ColorSequence.new(Color3.new(1, 1, 1)),
+		Transparency = NumberSequence.new({ 
+			NumberSequenceKeypoint.new(0, 0), 
+			NumberSequenceKeypoint.new(1, 1) 
+		}), 
+		Parent = white 
+	})
+	
+	-- Black gradient (top to bottom)
+	local black = New("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = svFrame })
+	New("UIGradient", { 
+		Color = ColorSequence.new(Color3.new(0, 0, 0)),
+		Rotation = 90,
+		Transparency = NumberSequence.new({ 
+			NumberSequenceKeypoint.new(0, 1), 
+			NumberSequenceKeypoint.new(1, 0) 
+		}), 
+		Parent = black 
+	})
+	
+	local svCursor = New("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(8, 8), AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = 64, Parent = svFrame })
 	Corner(svCursor, 8)
-	Stroke(svCursor, Color3.new(1, 1, 1), 1.5)
+	Stroke(svCursor, Color3.new(1, 1, 1), 2)
+	
+	local svHit = New("TextButton", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 65, Parent = svFrame })
 
-	local hue = New("TextButton", { BackgroundColor3 = Color3.new(1, 1, 1), Position = UDim2.fromOffset(8, 102), Size = UDim2.fromOffset(140, 10), ZIndex = 61, Parent = pop })
+	-- Hue Bar
+	local hue = New("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), Position = UDim2.fromOffset(8, 102), Size = UDim2.fromOffset(140, 10), ZIndex = 61, ClipsDescendants = true, Parent = pop })
 	Corner(hue, 4)
 	New("UIGradient", {
 		Color = ColorSequence.new({
@@ -886,19 +966,23 @@ local function BuildColorPopup(win)
 	local hueCursor = New("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), Size = UDim2.fromOffset(3, 14), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), ZIndex = 62, Parent = hue })
 	Corner(hueCursor, 2)
 	Stroke(hueCursor, Color3.new(0, 0, 0), 1, 0.5)
+	
+	local hueHit = New("TextButton", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = hue })
 
+	-- Hex Box
 	local hexBox = New("TextBox", {
-		BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(8, 118), Size = UDim2.fromOffset(140, 24),
+		BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(8, 120), Size = UDim2.fromOffset(140, 24),
 		Text = "#FFFFFF", TextSize = 10, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 61, Parent = pop,
 	})
 	Corner(hexBox, 5)
 	Stroke(hexBox, Theme.ElementStroke)
 
 	local state = { cp = nil, h = 0, s = 1, v = 1 }
+	local isDragging = false
 
 	local function refresh()
 		local c = Color3.fromHSV(state.h, state.s, state.v)
-		sv.BackgroundColor3 = Color3.fromHSV(state.h, 1, 1)
+		svFrame.BackgroundColor3 = Color3.fromHSV(state.h, 1, 1)
 		svCursor.Position = UDim2.fromScale(state.s, 1 - state.v)
 		hueCursor.Position = UDim2.fromScale(state.h, 0.5)
 		hexBox.Text = "#" .. c:ToHex():upper()
@@ -908,21 +992,23 @@ local function BuildColorPopup(win)
 		refresh()
 	end
 
-	sv.InputBegan:Connect(function(input)
+	svHit.InputBegan:Connect(function(input)
 		if IsPress(input) then
+			isDragging = true
 			BeginDrag(input, function(p)
-				state.s = Clamp((p.X - sv.AbsolutePosition.X) / sv.AbsoluteSize.X, 0, 1)
-				state.v = 1 - Clamp((p.Y - sv.AbsolutePosition.Y) / sv.AbsoluteSize.Y, 0, 1)
+				state.s = Clamp((p.X - svFrame.AbsolutePosition.X) / svFrame.AbsoluteSize.X, 0, 1)
+				state.v = 1 - Clamp((p.Y - svFrame.AbsolutePosition.Y) / svFrame.AbsoluteSize.Y, 0, 1)
 				push()
-			end)
+			end, function() isDragging = false end)
 		end
 	end)
-	hue.InputBegan:Connect(function(input)
+	hueHit.InputBegan:Connect(function(input)
 		if IsPress(input) then
+			isDragging = true
 			BeginDrag(input, function(p)
 				state.h = Clamp((p.X - hue.AbsolutePosition.X) / hue.AbsoluteSize.X, 0, 0.999)
 				push()
-			end)
+			end, function() isDragging = false end)
 		end
 	end)
 	hexBox.FocusLost:Connect(function()
@@ -945,7 +1031,7 @@ local function BuildColorPopup(win)
 		local ap, as = anchor.AbsolutePosition, anchor.AbsoluteSize
 		local x = Clamp(ap.X + as.X - 156, 6, vp.X - 162)
 		local y = ap.Y + as.Y + 6
-		if y + 150 > vp.Y - 6 then y = ap.Y - 156 end
+		if y + 152 > vp.Y - 6 then y = ap.Y - 152 end
 		pop.Position = UDim2.fromOffset(x, y)
 		win.Catcher.Visible = true
 		pop.Visible = true
@@ -965,7 +1051,7 @@ local function BuildColorPopup(win)
 		task.delay(0.12, function() if win.Popup ~= api then pop.Visible = false end end)
 	end
 	api.Refresh = function(cp)
-		if state.cp == cp then
+		if state.cp == cp and not isDragging then
 			state.h, state.s, state.v = cp.Value:ToHSV()
 			refresh()
 		end
@@ -985,7 +1071,7 @@ local function CreateColorPicker(win, parent, o)
 
 	function cp:Set(c, silent)
 		self.Value = c
-		Tween(swatch, { BackgroundColor3 = c }, 0.1)
+		swatch.BackgroundColor3 = c -- Direct assignment instead of Tween (fixes smoothness)
 		if self.Flag then Library.Flags[self.Flag] = c end
 		if win.ColorPopup then win.ColorPopup.Refresh(self) end
 		if not silent then task.spawn(self.Callback, c) end
