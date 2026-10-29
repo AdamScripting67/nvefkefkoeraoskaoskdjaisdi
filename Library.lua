@@ -43,8 +43,8 @@ local Theme = {
 	Element = Color3.fromRGB(18, 18, 22),
 	ElementHover = Color3.fromRGB(24, 24, 29),
 	ElementStroke = Color3.fromRGB(36, 36, 42),
-	Accent = Color3.fromRGB(158, 226, 31),
-	OnAccent = Color3.fromRGB(10, 14, 3),
+	Accent = Color3.fromRGB(255, 255, 255), -- Changed to White
+	OnAccent = Color3.fromRGB(10, 10, 10), -- Dark text/checks on Accent
 	Text = Color3.fromRGB(236, 236, 240),
 	SubText = Color3.fromRGB(104, 106, 116),
 	Dim = Color3.fromRGB(70, 72, 80),
@@ -141,7 +141,8 @@ local function DecimalsOf(n)
 end
 
 local function InputPos(input)
-	return Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+	-- Removed GuiInset addition to fix the color picker offset
+	return Vector2.new(input.Position.X, input.Position.Y)
 end
 
 local function IsPress(input)
@@ -535,31 +536,45 @@ function Library:CreateWindow(o)
 	gear.MouseEnter:Connect(function() if not self.SettingsOpen then Tween(gear, { TextColor3 = Theme.Accent, Rotation = 45 }, 0.2) end end)
 	gear.MouseLeave:Connect(function() if not self.SettingsOpen then Tween(gear, { TextColor3 = Theme.SubText, Rotation = 0 }, 0.2) end end)
 
-	-- Settings Popup (Accent Colored Keybind)
-	local settingsPopup = New("CanvasGroup", {
-		BackgroundColor3 = Theme.Background, Position = UDim2.new(0, 9, 1, -55), AnchorPoint = Vector2.new(0, 1),
-		Size = UDim2.fromOffset(173, 60), Visible = false, GroupTransparency = 1, ZIndex = 8, Parent = main
+	-- Draggable Settings Modal
+	local settingsFrame = New("CanvasGroup", {
+		Name = "SettingsMenu", BackgroundColor3 = Theme.Background, GroupTransparency = 1,
+		Size = UDim2.fromOffset(300, 220), Visible = false, ZIndex = 150, Parent = gui,
+		Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5)
 	})
-	Corner(settingsPopup, 6)
-	Stroke(settingsPopup, Theme.Accent, 1, 0.4)
+	Corner(settingsFrame, 7)
+	Stroke(settingsFrame, Theme.Stroke)
+	local settingsScale = New("UIScale", { Scale = 0.9, Parent = settingsFrame })
+
+	local sHeader = New("Frame", { BackgroundColor3 = Theme.TopBar, Size = UDim2.new(1, 0, 0, 40), Parent = settingsFrame })
+	Corner(sHeader, 7)
+	New("Frame", { BackgroundColor3 = Theme.TopBar, Size = UDim2.new(1, 0, 0, 10), Position = UDim2.new(0, 0, 1, -10), Parent = sHeader })
+	New("TextLabel", { Text = "Settings", Font = FONT_BOLD, TextSize = 12, Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -40, 1, 0), Parent = sHeader })
+	local closeSettings = New("TextButton", { Text = "✕", TextSize = 12, TextColor3 = Theme.SubText, Position = UDim2.new(1, -30, 0, 0), Size = UDim2.fromOffset(30, 40), Parent = sHeader })
+	closeSettings.MouseEnter:Connect(function() Tween(closeSettings, {TextColor3 = Theme.Text}, 0.15) end)
+	closeSettings.MouseLeave:Connect(function() Tween(closeSettings, {TextColor3 = Theme.SubText}, 0.15) end)
+
+	local sBody = New("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(14, 54), Size = UDim2.new(1, -28, 1, -68), Parent = settingsFrame })
 	
-	New("TextLabel", {
-		Text = "Menu Toggle Key", TextSize = 10, TextColor3 = Theme.Text, Font = FONT_BOLD,
-		Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -20, 0, 14), Parent = settingsPopup
-	})
-	
-	local keyBtn = New("TextButton", {
-		BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -20, 0, 22),
-		Text = tostring(Library.ToggleKey.Name):upper(), TextSize = 10, TextColor3 = Theme.Accent,
-		Font = FONT_BOLD, Parent = settingsPopup
-	})
-	Corner(keyBtn, 4)
-	Stroke(keyBtn, Theme.Accent, 1, 0.6)
-	
-	local listening = false
+	New("TextLabel", { Text = "Menu Toggle Key", TextSize = 10, TextColor3 = Theme.SubText, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 16), Parent = sBody })
+	local keyBtn = New("TextButton", { BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 28), Text = tostring(Library.ToggleKey.Name):upper(), TextSize = 10, TextColor3 = Theme.Accent, Font = FONT_BOLD, Parent = sBody })
+	Corner(keyBtn, 5)
+	local keyStroke = Stroke(keyBtn, Theme.Accent, 1, 0.5)
+
+	New("TextLabel", { Text = "UI Actions", TextSize = 10, TextColor3 = Theme.SubText, Position = UDim2.fromOffset(0, 64), Size = UDim2.new(1, 0, 0, 16), Parent = sBody })
+	local unloadBtn = New("TextButton", { BackgroundColor3 = Theme.Element, Position = UDim2.fromOffset(0, 84), Size = UDim2.new(1, 0, 0, 28), Text = "Unload UI", TextSize = 10, TextColor3 = Theme.Text, Font = FONT_BOLD, Parent = sBody })
+	Corner(unloadBtn, 5)
+	local unloadStroke = Stroke(unloadBtn, Theme.ElementStroke)
+	unloadBtn.MouseEnter:Connect(function() Tween(unloadBtn, { BackgroundColor3 = Theme.ElementHover }, 0.15); Tween(unloadStroke, { Color = Theme.Dim }, 0.15) end)
+	unloadBtn.MouseLeave:Connect(function() Tween(unloadBtn, { BackgroundColor3 = Theme.Element }, 0.15); Tween(unloadStroke, { Color = Theme.ElementStroke }, 0.15) end)
+	unloadBtn.MouseButton1Click:Connect(function()
+		Library:Unload()
+	end)
+
+	local listeningKey = false
 	keyBtn.MouseButton1Click:Connect(function()
-		if listening then return end
-		listening = true
+		if listeningKey then return end
+		listeningKey = true
 		keyBtn.Text = "..."
 		local conn
 		conn = UIS.InputBegan:Connect(function(input, gp)
@@ -567,29 +582,47 @@ function Library:CreateWindow(o)
 			if input.UserInputType == Enum.UserInputType.Keyboard then
 				Library.ToggleKey = input.KeyCode
 				keyBtn.Text = tostring(input.KeyCode.Name):upper()
-				listening = false
+				listeningKey = false
 				conn:Disconnect()
 				if o.OnSettings then task.spawn(o.OnSettings) end
 			end
 		end)
 	end)
-	
+
+	local function makeSettingsDraggable(inst)
+		inst.InputBegan:Connect(function(input)
+			if IsPress(input) and not activeDrag then
+				local start = InputPos(input)
+				local origin = settingsFrame.AbsolutePosition
+				BeginDrag(input, function(p)
+					local d = p - start
+					settingsFrame.Position = UDim2.fromOffset(origin.X + d.X, origin.Y + d.Y)
+				end)
+			end
+		end)
+	end
+	makeSettingsDraggable(sHeader)
+
 	self.SettingsOpen = false
-	gear.MouseButton1Click:Connect(function()
+	local function toggleSettings()
 		self.SettingsOpen = not self.SettingsOpen
 		if self.SettingsOpen then
-			settingsPopup.Visible = true
-			Tween(settingsPopup, { GroupTransparency = 0 }, 0.25, Enum.EasingStyle.Quint)
-			Tween(gear, { TextColor3 = Theme.Accent, Rotation = 45 }, 0.25)
+			settingsFrame.Visible = true
+			settingsFrame.GroupTransparency = 1
+			settingsScale.Scale = 0.9
+			Tween(settingsFrame, { GroupTransparency = 0 }, 0.2)
+			Tween(settingsScale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back)
+			Tween(gear, { TextColor3 = Theme.Accent, Rotation = 45 }, 0.2)
 		else
-			Tween(settingsPopup, { GroupTransparency = 1 }, 0.2)
+			Tween(settingsFrame, { GroupTransparency = 1 }, 0.15)
+			Tween(settingsScale, { Scale = 0.95 }, 0.15)
 			Tween(gear, { TextColor3 = Theme.SubText, Rotation = 0 }, 0.2)
-			task.delay(0.2, function() 
-				if not self.SettingsOpen then settingsPopup.Visible = false end 
-			end)
-			if o.OnSettings then task.spawn(o.OnSettings) end
+			task.delay(0.15, function() if not self.SettingsOpen then settingsFrame.Visible = false end end)
 		end
-	end)
+	end
+
+	gear.MouseButton1Click:Connect(toggleSettings)
+	closeSettings.MouseButton1Click:Connect(toggleSettings)
 
 	-- Dragging from any non-interactive area -----------------------------
 	for _, inst in ipairs({ main, rail, topbar, tabList, content, logoHolder, card, railList }) do
@@ -749,7 +782,6 @@ function Window:SelectCategory(cat)
 	if t then 
 		self:SelectTab(t, true) 
 	else
-		-- FIX: Hide the current tab if the new category has no tabs
 		if self.ActiveTab then
 			local oldTab = self.ActiveTab
 			self.ActiveTab = nil
@@ -789,7 +821,6 @@ function Category:AddTab(o)
 	end)
 	btn.MouseButton1Click:Connect(function() win:SelectTab(tab) end)
 
-	-- FIX: Changed from CanvasGroup to Frame to prevent blurriness
 	local page = New("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = win.Content })
 	local cols = New("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 12), Size = UDim2.new(1, -23, 1, -30), Parent = page })
 	tab.Page = page
@@ -923,7 +954,6 @@ local function BuildColorPopup(win)
 	local svFrame = New("Frame", { BackgroundColor3 = Color3.new(1, 0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(140, 88), ZIndex = 61, ClipsDescendants = true, Parent = pop })
 	Corner(svFrame, 4)
 	
-	-- White gradient (left to right)
 	local white = New("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), Size = UDim2.fromScale(1, 1), ZIndex = 62, Parent = svFrame })
 	New("UIGradient", { 
 		Color = ColorSequence.new(Color3.new(1, 1, 1)),
@@ -934,7 +964,6 @@ local function BuildColorPopup(win)
 		Parent = white 
 	})
 	
-	-- Black gradient (top to bottom)
 	local black = New("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = svFrame })
 	New("UIGradient", { 
 		Color = ColorSequence.new(Color3.new(0, 0, 0)),
@@ -996,6 +1025,7 @@ local function BuildColorPopup(win)
 		if IsPress(input) then
 			isDragging = true
 			BeginDrag(input, function(p)
+				-- Fixed offset perfectly matches the mouse
 				state.s = Clamp((p.X - svFrame.AbsolutePosition.X) / svFrame.AbsoluteSize.X, 0, 1)
 				state.v = 1 - Clamp((p.Y - svFrame.AbsolutePosition.Y) / svFrame.AbsoluteSize.Y, 0, 1)
 				push()
@@ -1071,7 +1101,7 @@ local function CreateColorPicker(win, parent, o)
 
 	function cp:Set(c, silent)
 		self.Value = c
-		swatch.BackgroundColor3 = c -- Direct assignment instead of Tween (fixes smoothness)
+		swatch.BackgroundColor3 = c
 		if self.Flag then Library.Flags[self.Flag] = c end
 		if win.ColorPopup then win.ColorPopup.Refresh(self) end
 		if not silent then task.spawn(self.Callback, c) end
